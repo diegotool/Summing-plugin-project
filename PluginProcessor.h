@@ -51,6 +51,7 @@ private:
     dg::SSLCompressor compressor;
     dg::MonoMaker monoMaker;
     juce::SmoothedValue<float> midSm, sideSm;
+    juce::SmoothedValue<float> preSm, postSm; // ganancia antes/despues del Bus Driver
 
     juce::AudioBuffer<float> sumBuf;
     double sr = 44100.0;

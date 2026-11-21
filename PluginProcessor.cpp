@@ -28,15 +28,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout MasterBusProcessor::createLa
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "crosstalk", 1 }, "Crosstalk",
                  NormalisableRange<float> (0.f, 1.f, 0.01f), 0.5f));
 
-    // Drive
+    // Entrada / salida
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "inTrim", 1 }, "Input Trim",
+                 NormalisableRange<float> (-12.f, 12.f, 0.1f), 0.f, AudioParameterFloatAttributes().withLabel ("dB")));
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "outTrim", 1 }, "Output Trim",
+                 NormalisableRange<float> (-12.f, 12.f, 0.1f), 0.f, AudioParameterFloatAttributes().withLabel ("dB")));
+
+    // Drive / Bus Driver
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "drive", 1 }, "Drive",
-                 NormalisableRange<float> (0.f, 24.f, 0.1f), 6.f));
+                 NormalisableRange<float> (0.f, 40.f, 0.1f), 6.f, AudioParameterFloatAttributes().withLabel ("dB")));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "driveMode", 1 }, "Drive Mode",
-                 StringArray { "Discrete / Class A", "Tape / Smooth", "Grit / Hard" }, 0));
+                 StringArray { "Discrete / Class A", "Tape / Smooth", "Grit / Hard", "Bus Driver (McLoone)" }, 0));
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "boost", 1 }, "Boost +19 dB", false));
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "inPad", 1 }, "Input Pad -30 dB", false));
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "outPad", 1 }, "Output Pad -18 dB", false));
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "levelMatch", 1 }, "Level Match", true));
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "ironStrength", 1 }, "Iron Strength",
+                 NormalisableRange<float> (0.f, 1.f, 0.01f), 0.5f));
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "ironMorph", 1 }, "Iron Morph",
+                 NormalisableRange<float> (0.f, 1.f, 0.01f), 0.f));
 
     // Enhance
-    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "enhance", 1 }, "Enhance", false));
-    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "enhAmount", 1 }, "Enhance Amount",
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "enhance", 1 }, "Thickness", false));
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "enhAmount", 1 }, "Thickness Amount",
                  NormalisableRange<float> (0.f, 1.f, 0.01f), 0.6f));
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "wetDry", 1 }, "Wet / Dry",
                  NormalisableRange<float> (0.f, 100.f, 0.1f), 30.f, AudioParameterFloatAttributes().withLabel ("%")));
@@ -110,6 +124,10 @@ void MasterBusProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     sideSm.reset (sampleRate, 0.03);
     midSm.setCurrentAndTargetValue (1.0f);
     sideSm.setCurrentAndTargetValue (1.0f);
+    preSm.reset (sampleRate, 0.02);
+    postSm.reset (sampleRate, 0.02);
+    preSm.setCurrentAndTargetValue (1.0f);
+    postSm.setCurrentAndTargetValue (1.0f);
     sumBuf.setSize (2, samplesPerBlock);
 
     setLatencySamples (juce::roundToInt (saturation.getLatencySamples()));
@@ -143,8 +161,60 @@ void MasterBusProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     summer.process (src, sumBuf.getWritePointer (0), sumBuf.getWritePointer (1), n,
                     param ("recovery"), param ("tolerance"), param ("crosstalk"));
 
-    // Etapa 2: Drive (3 modos, oversampling 4x)
-    saturation.process (sumBuf, n, param ("drive"), (int) param ("driveMode"));
+    // Etapa 2: Drive / Bus Driver (oversampling 4x)
+    //   Entrada -> trim -> pad -> [Drive + Boost] -> etapa clase A + transformador -> pad -> trim -> salida
+    {
+        const int mode = (int) param ("driveMode");
+        const bool busDriver = (mode == 3);
+        const float boostDb  = param ("boost") > 0.5f ? 19.0f : 0.0f;
+        const float inPadDb  = param ("inPad") > 0.5f ? -30.0f : 0.0f;
+        const float outPadDb = param ("outPad") > 0.5f ? -18.0f : 0.0f;
+
+        float preDb = param ("inTrim") + inPadDb;
+        float postDb = outPadDb + param ("outTrim");
+        float satDrive = 0.0f;
+
+        if (busDriver)
+        {
+            // El Drive del hardware es un conmutador de 11 posiciones en pasos de 4 dB
+            const float driveDb = std::round (param ("drive") / 4.0f) * 4.0f;
+            preDb += driveDb + boostDb;
+
+            // Level Match compensa la mitad de la ganancia aplicada (el resto lo hace la saturacion)
+            if (param ("levelMatch") > 0.5f)
+                postDb -= 0.5f * (driveDb + boostDb);
+
+            saturation.setIron (param ("ironStrength"), param ("ironMorph"));
+        }
+        else
+        {
+            satDrive = param ("drive") + boostDb; // los modos anteriores compensan solos
+        }
+
+        preSm.setTargetValue (juce::Decibels::decibelsToGain (preDb));
+        postSm.setTargetValue (juce::Decibels::decibelsToGain (postDb));
+
+        float* dL = sumBuf.getWritePointer (0);
+        float* dR = sumBuf.getWritePointer (1);
+
+        if (preSm.isSmoothing() || preSm.getTargetValue() != 1.0f)
+            for (int s = 0; s < n; ++s)
+            {
+                const float gp = preSm.getNextValue();
+                dL[s] *= gp;
+                dR[s] *= gp;
+            }
+
+        saturation.process (sumBuf, n, satDrive, mode);
+
+        if (postSm.isSmoothing() || postSm.getTargetValue() != 1.0f)
+            for (int s = 0; s < n; ++s)
+            {
+                const float gq = postSm.getNextValue();
+                dL[s] *= gq;
+                dR[s] *= gq;
+            }
+    }
 
     // Etapa 3: Enhance paralelo + Wet/Dry
     if (param ("enhance") > 0.5f)

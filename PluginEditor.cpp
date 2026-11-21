@@ -80,18 +80,28 @@ MasterEditor::MasterEditor (MasterBusProcessor& p)
         addAndMakeVisible (*l);
     }
 
-    addSection ("SUMA PASIVA");
+    addSection ("ENTRADA / SALIDA");
+    addSlider ("inTrim",  "Input Trim");
+    addSlider ("outTrim", "Output Trim");
+
+    addSection ("SUMA PASIVA (MINI-BUS)");
     addSlider ("recovery",  "Gain Recovery");
     addSlider ("tolerance", "Tolerance");
     addSlider ("crosstalk", "Crosstalk");
 
-    addSection ("DRIVE");
-    addSlider ("drive", "Drive");
+    addSection ("BUS DRIVER");
     addCombo  ("driveMode", "Drive Mode");
+    addSlider ("drive", "Drive");
+    addToggle ("boost", "Boost (+19 dB)");
+    addToggle ("inPad", "Input Pad (-30 dB)");
+    addToggle ("outPad", "Output Pad (-18 dB)");
+    addToggle ("levelMatch", "Level Match");
+    addSlider ("ironStrength", "Iron Strength");
+    addSlider ("ironMorph", "Iron Morph");
 
-    addSection ("ENHANCE");
-    addToggle ("enhance", "Enhance On");
-    addSlider ("enhAmount", "Enhance Amount");
+    addSection ("THICKNESS");
+    addToggle ("enhance", "Thickness On");
+    addSlider ("enhAmount", "Thickness Amount");
     addSlider ("wetDry", "Wet / Dry");
 
     addSection ("ESTEREO / GRAVES");
@@ -108,7 +118,7 @@ MasterEditor::MasterEditor (MasterBusProcessor& p)
     addCombo  ("scHpf", "SC HPF");
     addSlider ("vcaColor", "VCA Color");
 
-    setSize (780, 710);
+    setSize (1110, 710);
     startTimerHz (30);
 }
 
@@ -186,28 +196,44 @@ void MasterEditor::resized()
 
     area.removeFromLeft (14);
 
-    bool first = true;
-    for (auto& r : layoutRows)
+    // Controles en dos columnas
+    const int colGap = 16;
+    const int colW = (area.getWidth() - colGap) / 2;
+    int x = area.getX();
+    const int top = area.getY();
+    const int bottom = area.getBottom();
+    int y = top;
+
+    for (const auto& r : layoutRows)
     {
+        const int h = r.isHeader ? 26 : 28;
+        int gap = (r.isHeader && y != top) ? 6 : 0;
+        const int need = r.isHeader ? h + 2 * 28 : h; // una cabecera nunca queda sola al final
+
+        if (y + gap + need > bottom)
+        {
+            x += colW + colGap;
+            y = top;
+            gap = 0;
+        }
+
+        y += gap;
+
         if (r.isHeader)
         {
-            if (! first) area.removeFromTop (6);
-            r.label->setBounds (area.removeFromTop (26));
+            r.label->setBounds (x, y, colW, h);
+        }
+        else if (r.label != nullptr)
+        {
+            r.label->setBounds (x, y, 130, h);
+            r.control->setBounds (x + 130, y + 2, colW - 130, h - 4);
         }
         else
         {
-            auto line = area.removeFromTop (28);
-            if (r.label != nullptr)
-            {
-                r.label->setBounds (line.removeFromLeft (130));
-                r.control->setBounds (line.reduced (0, 2));
-            }
-            else
-            {
-                r.control->setBounds (line.reduced (0, 2).withTrimmedLeft (4));
-            }
+            r.control->setBounds (x + 4, y + 2, colW - 4, h - 4);
         }
-        first = false;
+
+        y += h;
     }
 }
 
