@@ -94,6 +94,10 @@ MasterEditor::MasterEditor (MasterBusProcessor& p)
     addSlider ("enhAmount", "Enhance Amount");
     addSlider ("wetDry", "Wet / Dry");
 
+    addSection ("ESTEREO / GRAVES");
+    addSlider ("space", "Space");
+    addSlider ("monoFreq", "Mono Maker");
+
     addSection ("COMPRESOR (SSL G)");
     addToggle ("compOn", "Comp On");
     addSlider ("threshold", "Threshold");
@@ -102,8 +106,9 @@ MasterEditor::MasterEditor (MasterBusProcessor& p)
     addCombo  ("release", "Release");
     addSlider ("makeup", "Makeup");
     addCombo  ("scHpf", "SC HPF");
+    addSlider ("vcaColor", "VCA Color");
 
-    setSize (780, 670);
+    setSize (780, 710);
     startTimerHz (30);
 }
 
@@ -187,19 +192,19 @@ void MasterEditor::resized()
         if (r.isHeader)
         {
             if (! first) area.removeFromTop (6);
-            r.label->setBounds (area.removeFromTop (30));
+            r.label->setBounds (area.removeFromTop (26));
         }
         else
         {
-            auto line = area.removeFromTop (32);
+            auto line = area.removeFromTop (28);
             if (r.label != nullptr)
             {
                 r.label->setBounds (line.removeFromLeft (130));
-                r.control->setBounds (line.reduced (0, 3));
+                r.control->setBounds (line.reduced (0, 2));
             }
             else
             {
-                r.control->setBounds (line.reduced (0, 3).withTrimmedLeft (4));
+                r.control->setBounds (line.reduced (0, 2).withTrimmedLeft (4));
             }
         }
         first = false;

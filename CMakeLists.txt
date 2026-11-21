@@ -33,6 +33,7 @@ target_sources(DGMasterBus PRIVATE
     PassiveSummer.h
     Saturation.h
     Enhance.h
+    StereoTools.h
     SSLCompressor.h)
 
 target_compile_definitions(DGMasterBus PUBLIC
@@ -66,6 +67,7 @@ target_sources(DGSender PRIVATE
     SenderProcessor.cpp
     SenderProcessor.h
     DspUtils.h
+    StereoTools.h
     Saturation.h)
 
 target_compile_definitions(DGSender PUBLIC

@@ -15,6 +15,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout SenderProcessor::createLayou
                  NormalisableRange<float> (0.f, 12.f, 0.1f), 3.f, AudioParameterFloatAttributes().withLabel ("dB")));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "mode", 1 }, "Color Mode",
                  StringArray { "Discrete / Class A", "Tape / Smooth", "Grit / Hard" }, 0));
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "width", 1 }, "Width",
+                 NormalisableRange<float> (0.f, 200.f, 0.1f), 100.f, AudioParameterFloatAttributes().withLabel ("%")));
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "trim", 1 }, "Trim",
                  NormalisableRange<float> (-12.f, 12.f, 0.1f), 0.f, AudioParameterFloatAttributes().withLabel ("dB")));
 
@@ -55,6 +57,9 @@ void SenderProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
         g.setCurrentAndTargetValue (1.0f);
     }
 
+    sideSm.reset (sampleRate, 0.03);
+    sideSm.setCurrentAndTargetValue (1.0f);
+
     setLatencySamples (juce::roundToInt (saturation.getLatencySamples()));
 }
 
@@ -83,6 +88,18 @@ void SenderProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         float* d = buffer.getWritePointer (ch);
         for (int s = 0; s < n; ++s)
             d[s] *= gainSm[ch].getNextValue();
+    }
+
+    // Ancho estereo (mid/side)
+    sideSm.setTargetValue (param ("width") * 0.01f);
+
+    if (sideSm.isSmoothing() || sideSm.getTargetValue() != 1.0f)
+    {
+        float* L = buffer.getWritePointer (0);
+        float* R = buffer.getWritePointer (1);
+
+        for (int s = 0; s < n; ++s)
+            dg::applySpace (L[s], R[s], 1.0f, sideSm.getNextValue());
     }
 }
 

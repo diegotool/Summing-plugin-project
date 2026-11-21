@@ -41,6 +41,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout MasterBusProcessor::createLa
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "wetDry", 1 }, "Wet / Dry",
                  NormalisableRange<float> (0.f, 100.f, 0.1f), 30.f, AudioParameterFloatAttributes().withLabel ("%")));
 
+    // Estereo (al final de la cadena)
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "space", 1 }, "Space",
+                 NormalisableRange<float> (0.f, 1.f, 0.01f), 0.f));
+    {
+        NormalisableRange<float> monoRange (20.f, 500.f, 0.1f);
+        monoRange.setSkewForCentre (100.f);
+        p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "monoFreq", 1 }, "Mono Maker",
+                     monoRange, 20.f,
+                     AudioParameterFloatAttributes()
+                         .withStringFromValueFunction ([] (float v, int) { return v <= 20.5f ? String ("Off") : String (v, 0) + " Hz"; })
+                         .withValueFromStringFunction ([] (const String& s) { return s.containsIgnoreCase ("off") ? 20.f : s.getFloatValue(); })));
+    }
+
     // Compresor SSL G
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "compOn", 1 }, "Comp On", true));
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "threshold", 1 }, "Threshold",
@@ -55,6 +68,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout MasterBusProcessor::createLa
                  NormalisableRange<float> (0.f, 20.f, 0.1f), 0.f, AudioParameterFloatAttributes().withLabel ("dB")));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "scHpf", 1 }, "SC HPF",
                  StringArray { "Off", "60 Hz", "90 Hz", "120 Hz" }, 1));
+
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "vcaColor", 1 }, "VCA Color",
+                 NormalisableRange<float> (0.f, 1.f, 0.01f), 0.35f));
 
     return { p.begin(), p.end() };
 }
@@ -89,6 +105,11 @@ void MasterBusProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     saturation.prepare (sampleRate, samplesPerBlock);
     enhance.prepare (sampleRate, samplesPerBlock);
     compressor.prepare (sampleRate, samplesPerBlock);
+    monoMaker.prepare (sampleRate, samplesPerBlock);
+    midSm.reset (sampleRate, 0.03);
+    sideSm.reset (sampleRate, 0.03);
+    midSm.setCurrentAndTargetValue (1.0f);
+    sideSm.setCurrentAndTargetValue (1.0f);
     sumBuf.setSize (2, samplesPerBlock);
 
     setLatencySamples (juce::roundToInt (saturation.getLatencySamples()));
@@ -144,6 +165,7 @@ void MasterBusProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         cp.releaseSec  = releases[juce::jlimit (0, 4, (int) param ("release"))];
         cp.makeupDb    = param ("makeup");
         cp.hpfHz       = hpfs[juce::jlimit (0, 3, (int) param ("scHpf"))];
+        cp.vcaColor    = param ("vcaColor");
 
         grMeterDb.store (compressor.process (sumBuf, n, cp));
     }
@@ -151,6 +173,25 @@ void MasterBusProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     {
         grMeterDb.store (0.f);
     }
+
+    // Etapa 5: Space (mid/side): sube los laterales y baja un poco el centro
+    {
+        const float sp = param ("space");
+        midSm.setTargetValue (juce::Decibels::decibelsToGain (-2.0f * sp));
+        sideSm.setTargetValue (juce::Decibels::decibelsToGain (6.0f * sp));
+
+        if (sp > 0.f || midSm.isSmoothing() || sideSm.isSmoothing())
+        {
+            float* sL = sumBuf.getWritePointer (0);
+            float* sR = sumBuf.getWritePointer (1);
+
+            for (int s = 0; s < n; ++s)
+                dg::applySpace (sL[s], sR[s], midSm.getNextValue(), sideSm.getNextValue());
+        }
+    }
+
+    // Etapa 6: Mono Maker (ultimo, para garantizar graves en mono a la salida)
+    monoMaker.process (sumBuf, n, param ("monoFreq"));
 
     // Nivel de salida para el VU: promedio rectificado, constante de tiempo ~65 ms
     {

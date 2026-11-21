@@ -4,6 +4,7 @@
 #include "Saturation.h"
 #include "Enhance.h"
 #include "SSLCompressor.h"
+#include "StereoTools.h"
 
 class MasterBusProcessor : public juce::AudioProcessor
 {
@@ -48,6 +49,8 @@ private:
     dg::Saturation saturation;
     dg::Enhance enhance;
     dg::SSLCompressor compressor;
+    dg::MonoMaker monoMaker;
+    juce::SmoothedValue<float> midSm, sideSm;
 
     juce::AudioBuffer<float> sumBuf;
     double sr = 44100.0;

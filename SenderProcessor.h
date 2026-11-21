@@ -1,11 +1,13 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Saturation.h"
+#include "StereoTools.h"
 
 // DG-Sender: colorea cada bus antes de llegar al DG-MasterBus.
 //  - Tolerance: pequeña variación de ganancia propia de cada canal L/R.
 //    El selector "Bus" cambia la semilla, así cada bus tiene desviaciones distintas y fijas.
 //  - Color: saturación ligera (mismos 3 modos que el Drive del Master, con oversampling 4x).
+//  - Width: ancho estereo del bus (mid/side, 100 % = sin cambio) para separar los buses entre si.
 //  - Trim: nivel de salida.
 class SenderProcessor : public juce::AudioProcessor
 {
@@ -45,6 +47,7 @@ private:
 
     dg::Saturation saturation;
     juce::SmoothedValue<float> gainSm[2];
+    juce::SmoothedValue<float> sideSm;
     float tol[2] { 0.f, 0.f };
     int currentBus = -1;
 
