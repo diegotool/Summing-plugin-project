@@ -437,7 +437,8 @@ void MasterEditor::paint (juce::Graphics& g)
         g.setColour (mod.accent.withAlpha (0.45f));
         g.drawRoundedRectangle (mb.reduced (0.5f), 6.f, 1.f);
 
-        auto header = mb.removeFromTop (24.f * scale);
+        auto headerArea = mb;
+        auto header = headerArea.removeFromTop (24.f * scale);
         g.setColour (mod.accent.withAlpha (0.18f));
         g.fillRoundedRectangle (header, 5.f);
 
