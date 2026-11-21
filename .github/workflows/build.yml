@@ -1,4 +1,4 @@
-name: Compilar DG-MasterBus
+name: Compilar DG-MasterBus y DG-Sender
 
 on:
   push:
@@ -17,9 +17,11 @@ jobs:
       - name: Compilar
         run: cmake --build build --config Release --parallel
 
-      - name: Guardar el plugin terminado
+      - name: Guardar los plugins terminados
         uses: actions/upload-artifact@v4
         with:
-          name: DG-MasterBus-VST3-Windows
-          path: build/DGMasterBus_artefacts/Release/VST3/
+          name: DG-Plugins-VST3-Windows
+          path: |
+            build/DGMasterBus_artefacts/Release/VST3/
+            build/DGSender_artefacts/Release/VST3/
           if-no-files-found: error
