@@ -23,7 +23,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout MasterBusProcessor::createLa
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "recovery", 1 }, "Gain Recovery",
                  NormalisableRange<float> (0.f, 24.f, 0.01f), 13.98f));
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "tolerance", 1 }, "Tolerance",
-                 NormalisableRange<float> (0.f, 1.f, 0.01f), 0.5f));
+                 NormalisableRange<float> (0.f, 1.f, 0.01f), 0.7f));
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "crosstalk", 1 }, "Crosstalk",
                  NormalisableRange<float> (0.f, 1.f, 0.01f), 0.5f));
 
@@ -35,6 +35,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout MasterBusProcessor::createLa
 
     // Enhance
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "enhance", 1 }, "Enhance", false));
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "enhAmount", 1 }, "Enhance Amount",
+                 NormalisableRange<float> (0.f, 1.f, 0.01f), 0.6f));
     p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { "wetDry", 1 }, "Wet / Dry",
                  NormalisableRange<float> (0.f, 100.f, 0.1f), 30.f, AudioParameterFloatAttributes().withLabel ("%")));
 
@@ -122,7 +124,7 @@ void MasterBusProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
     // Etapa 3: Enhance paralelo + Wet/Dry
     if (param ("enhance") > 0.5f)
-        enhance.process (sumBuf, n, param ("wetDry") * 0.01f);
+        enhance.process (sumBuf, n, param ("wetDry") * 0.01f, param ("enhAmount"));
 
     // Etapa 4: compresor VCA estilo SSL G
     if (param ("compOn") > 0.5f)

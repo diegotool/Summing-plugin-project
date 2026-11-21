@@ -23,8 +23,8 @@ public:
     }
 
     // src: 10 punteros [bus0L, bus0R, bus1L, ...]; nullptr si el bus está desactivado.
-    // tolerance: 0..1 (1 => hasta +-1 % de ganancia por canal)
-    // crosstalk: 0..1 (1 => -40 dB de fuga entre L y R)
+    // tolerance: 0..1 (1 => hasta +-3 % de ganancia por canal, ~0.26 dB)
+    // crosstalk: 0..1 (1 => -20 dB de fuga entre L y R)
     void process (const float* const* src, float* outL, float* outR, int n,
                   float recoveryDb, float tolerance, float crosstalk) const
     {
@@ -33,11 +33,11 @@ public:
 
         for (int i = 0; i < numBuses; ++i)
         {
-            gL[i] = base * (1.f + tol[i][0] * 0.01f * tolerance);
-            gR[i] = base * (1.f + tol[i][1] * 0.01f * tolerance);
+            gL[i] = base * (1.f + tol[i][0] * 0.03f * tolerance);
+            gR[i] = base * (1.f + tol[i][1] * 0.03f * tolerance);
         }
 
-        const float xt = crosstalk * 0.01f;
+        const float xt = crosstalk * 0.1f;
 
         for (int s = 0; s < n; ++s)
         {
