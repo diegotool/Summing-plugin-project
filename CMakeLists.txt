@@ -27,6 +27,8 @@ juce_add_plugin(DGMasterBus
 target_sources(DGMasterBus PRIVATE
     PluginProcessor.cpp
     PluginProcessor.h
+    PluginEditor.cpp
+    PluginEditor.h
     DspUtils.h
     PassiveSummer.h
     Saturation.h

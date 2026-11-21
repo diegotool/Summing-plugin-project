@@ -35,7 +35,8 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
-    std::atomic<float> grMeterDb { 0.f }; // para el vúmetro (fase 3)
+    std::atomic<float> grMeterDb { 0.f }; // reducción de ganancia (dB, positiva) para el medidor GR
+    std::atomic<float> vuLevel { 0.f };   // nivel de salida (lineal, balística VU) para el medidor VU
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
@@ -49,6 +50,8 @@ private:
     dg::SSLCompressor compressor;
 
     juce::AudioBuffer<float> sumBuf;
+    double sr = 44100.0;
+    float vuEnv = 0.f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MasterBusProcessor)
 };

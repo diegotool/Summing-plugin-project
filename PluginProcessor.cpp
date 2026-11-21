@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 
 using juce::ParameterID;
 
@@ -82,6 +83,8 @@ bool MasterBusProcessor::isBusesLayoutSupported (const BusesLayout& layouts) con
 
 void MasterBusProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    sr = sampleRate;
+    vuEnv = 0.f;
     summer.prepare();
     saturation.prepare (sampleRate, samplesPerBlock);
     enhance.prepare (sampleRate, samplesPerBlock);
@@ -149,6 +152,18 @@ void MasterBusProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
         grMeterDb.store (0.f);
     }
 
+    // Nivel de salida para el VU: promedio rectificado, constante de tiempo ~65 ms
+    {
+        const float coef = std::exp (-1.0f / ((float) sr * 0.065f));
+        const float* oL = sumBuf.getReadPointer (0);
+        const float* oR = sumBuf.getReadPointer (1);
+
+        for (int s = 0; s < n; ++s)
+            vuEnv = coef * vuEnv + (1.0f - coef) * 0.5f * (std::abs (oL[s]) + std::abs (oR[s]));
+
+        vuLevel.store (vuEnv * 1.11f); // calibrado para que un seno lea su valor RMS
+    }
+
     // Salida: copiar al bus de salida y limpiar el resto de canales
     auto out = getBusBuffer (buffer, false, 0);
     out.copyFrom (0, 0, sumBuf, 0, 0, n);
@@ -160,7 +175,7 @@ void MasterBusProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
 juce::AudioProcessorEditor* MasterBusProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor (*this); // GUI provisional (la GUI final es la Fase 3)
+    return new MasterEditor (*this);
 }
 
 void MasterBusProcessor::getStateInformation (juce::MemoryBlock& destData)
