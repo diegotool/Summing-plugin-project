@@ -39,14 +39,16 @@ void SenderPanel::resized()
 {
     sections.clear();
 
-    constexpr int y = 72, rowH = 176, ky = 34, kw = 80, kh = 126;
-
-    auto addSection = [this] (const char* title, juce::Colour accent, int x, int w)
+    const int y = 72, ky = 34;
+    auto addSection = [this, y] (const char* t, juce::Colour c, int sx, int sw)
     {
-        sections.push_back ({ title, accent, { x, y, w, rowH } });
+        Section s;
+        s.title = t;
+        s.accent = c;
+        s.bounds = juce::Rectangle<int> (sx, y, sw, 176);
+        sections.push_back (s);
     };
-
-    auto place = [] (dg::Knob& k, int x, int yy) { k.setBounds (x, yy, kw, kh); };
+    auto place = [] (dg::Knob& k, int px, int py) { k.setBounds (px, py, 80, 126); };
 
     int x = 36;
 

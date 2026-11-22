@@ -21,6 +21,7 @@ public:
 
 private:
     void timerCallback() override;
+    void addSec (const char* t, juce::Colour c, int sx, int sy, int sw);
 
     struct Section { juce::String title; juce::Colour accent; juce::Rectangle<int> bounds; };
 

@@ -350,7 +350,7 @@ public:
     }
 
 private:
-    juce::String valueText() const
+    juce::String valueText()
     {
         if (displayOverride)
             return displayOverride (slider.getValue());

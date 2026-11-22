@@ -84,18 +84,27 @@ MasterPanel::~MasterPanel()
 }
 
 //==============================================================================
+static void placeKnob (dg::Knob& k, int px, int py)
+{
+    k.setBounds (px, py, 80, 126);
+}
+
+void MasterPanel::addSec (const char* t, juce::Colour c, int sx, int sy, int sw)
+{
+    Section s;
+    s.title = t;
+    s.accent = c;
+    s.bounds = juce::Rectangle<int> (sx, sy, sw, 176);
+    sections.push_back (s);
+}
+
 void MasterPanel::resized()
 {
     sections.clear();
 
-    constexpr int yA = 72, yB = 258, rowH = 176, ky = 34, kw = 80, kh = 126;
-
-    auto addSection = [this] (const char* title, juce::Colour accent, int x, int y, int w)
-    {
-        sections.push_back ({ title, accent, { x, y, w, rowH } });
-    };
-
-    auto place = [] (dg::Knob& k, int x, int y) { k.setBounds (x, y, kw, kh); };
+    const int yA = 72, yB = 258, ky = 34;
+    auto addSection = [this] (const char* t, juce::Colour c, int sx, int sy, int sw) { addSec (t, c, sx, sy, sw); };
+    auto place = [] (dg::Knob& k, int px, int py) { placeKnob (k, px, py); };
 
     int x = 20;
 
@@ -149,8 +158,8 @@ void MasterPanel::resized()
     place (kOutTrim, x + 12, yB + ky);
     x += 112;
 
-    plateRect = { x, yB, 108, rowH };
-    flowRect = { 480, 15, 910, 32 };
+    plateRect = juce::Rectangle<int> (x, yB, 108, 176);
+    flowRect = juce::Rectangle<int> (480, 15, 910, 32);
 
     grMeter.setBounds (1108, yA, 292, 146);
     grReadout.setBounds (1108, yA + 150, 292, 24);
