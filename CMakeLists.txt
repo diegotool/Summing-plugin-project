@@ -29,6 +29,8 @@ target_sources(DGMasterBus PRIVATE
     PluginProcessor.h
     PluginEditor.cpp
     PluginEditor.h
+    DGWidgets.h
+    DGLookAndFeel.h
     DspUtils.h
     PassiveSummer.h
     Saturation.h
@@ -66,6 +68,10 @@ juce_add_plugin(DGSender
 target_sources(DGSender PRIVATE
     SenderProcessor.cpp
     SenderProcessor.h
+    SenderEditor.cpp
+    SenderEditor.h
+    DGWidgets.h
+    DGLookAndFeel.h
     DspUtils.h
     StereoTools.h
     Saturation.h)

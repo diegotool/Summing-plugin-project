@@ -1,131 +1,65 @@
 #pragma once
-#include <juce_audio_processors/juce_audio_processors.h>
-#include "PluginProcessor.h"
 #include <array>
-#include <vector>
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+#include "PluginProcessor.h"
+#include "DGWidgets.h"
 
-//==============================================================================
-class NeedleMeter : public juce::Component
+// Panel completo del Master (tamano base fijo; el editor lo escala)
+class MasterPanel : public juce::Component,
+                    private juce::Timer
 {
 public:
-    NeedleMeter (const juce::String& titleText,
-                 float minVal,
-                 float maxVal,
-                 std::initializer_list<float> tickValues,
-                 float dangerStart);
+    static constexpr int baseW = 1420;
+    static constexpr int baseH = 452;
 
-    void setValue (float newValue);
-    void paint (juce::Graphics& g) override;
+    explicit MasterPanel (MasterBusProcessor&);
+    ~MasterPanel() override;
 
-private:
-    juce::String title;
-    float minV = 0.f;
-    float maxV = 20.f;
-    std::vector<float> ticks;
-    float dangerFrom = 12.f;
-    float value = 0.f;
-};
-
-//==============================================================================
-class SslFusionLookAndFeel : public juce::LookAndFeel_V4
-{
-public:
-    SslFusionLookAndFeel();
-
-    void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
-                         float sliderPosProportional, float rotaryStartAngle,
-                         float rotaryEndAngle, juce::Slider& slider) override;
-
-    void drawToggleButton (juce::Graphics& g, juce::ToggleButton& button,
-                           bool shouldDrawButtonAsHighlighted,
-                           bool shouldDrawButtonAsDown) override;
-
-    void drawComboBox (juce::Graphics& g, int width, int height, bool isButtonDown,
-                       int buttonX, int buttonY, int buttonW, int buttonH,
-                       juce::ComboBox& box) override;
-};
-
-//==============================================================================
-class MasterEditor : public juce::AudioProcessorEditor,
-                     private juce::Timer
-{
-public:
-    explicit MasterEditor (MasterBusProcessor&);
-    ~MasterEditor() override;
-
-    void paint (juce::Graphics& g) override;
-    void paintOverChildren (juce::Graphics& g) override;
+    void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
     void timerCallback() override;
 
-    struct RackModule
-    {
-        juce::String title;
-        juce::Colour accent;
-        juce::Rectangle<int> bounds;
-    };
+    struct Section { juce::String title; juce::Colour accent; juce::Rectangle<int> bounds; };
 
-    struct KnobSlot
-    {
-        juce::String paramId;
-        juce::String labelText;
-        juce::Colour accent;
-        int moduleIndex = 0;
-        juce::Slider slider;
-        juce::Label label;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
-    };
-
-    struct ButtonSlot
-    {
-        juce::String paramId;
-        juce::String labelText;
-        int moduleIndex = 0;
-        juce::ToggleButton button;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> attachment;
-    };
-
-    struct ComboSlot
-    {
-        juce::String paramId;
-        juce::String labelText;
-        juce::Colour accent;
-        int moduleIndex = 0;
-        juce::ComboBox box;
-        juce::Label label;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> attachment;
-    };
-
-    void addKnob (int modIdx, const juce::String& id, const juce::String& text, juce::Colour accent);
-    void addButton (int modIdx, const juce::String& id, const juce::String& text);
-    void addCombo (int modIdx, const juce::String& id, const juce::String& text, juce::Colour accent);
-    void drawBrushedGraphite (juce::Graphics& g, juce::Rectangle<float> area);
-    void drawRackEars (juce::Graphics& g, juce::Rectangle<float> area);
-
+    dg::DGLookAndFeel laf;
     MasterBusProcessor& proc;
-    SslFusionLookAndFeel lnf;
+    juce::Image brushed;
+    std::vector<Section> sections;
+    juce::Rectangle<int> flowRect, plateRect;
 
-    juce::ComponentBoundsConstrainer constrainer;
-    juce::ResizableCornerComponent resizer { this, &constrainer };
+    dg::NeedleMeter grMeter, vuMeter;
+    juce::Label grReadout, vuReadout;
 
-    std::array<RackModule, 5> modules;
-    std::vector<std::unique_ptr<KnobSlot>> knobs;
-    std::vector<std::unique_ptr<ButtonSlot>> buttons;
-    std::vector<std::unique_ptr<ComboSlot>> combos;
+    dg::Knob kInTrim, kOutTrim;
+    dg::Knob kRecovery, kTolerance, kCrosstalk;
+    dg::Knob kDriveMode, kDrive, kIron, kMorph;
+    dg::Knob kThickAmt, kMix;
+    dg::Knob kThreshold, kRatio, kAttack, kRelease, kMakeup, kScHpf, kVca;
+    dg::Knob kSpace, kMono;
 
-    NeedleMeter grMeter;
-    NeedleMeter vuMeter;
-    juce::Label grReadout;
-    juce::Label vuReadout;
+    dg::LedButton bInPad, bBoost, bOutPad, bMatch, bThick, bComp;
 
-    float grShown = 0.f;
-    float grPeak  = 0.f;
-    int   grHold  = 0;
+    std::array<bool, 7> flowOn {};
+    float grShown = 0.f, grPeak = 0.f;
+    int grHold = 0;
+    int lastMode = -1;
 
-    static constexpr int baseWidth  = 1380;
-    static constexpr int baseHeight = 560;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MasterPanel)
+};
+
+class MasterEditor : public juce::AudioProcessorEditor
+{
+public:
+    explicit MasterEditor (MasterBusProcessor&);
+
+    void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff1a1c1f)); }
+    void resized() override;
+
+private:
+    MasterPanel panel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MasterEditor)
 };

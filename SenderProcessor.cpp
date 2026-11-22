@@ -1,4 +1,5 @@
 #include "SenderProcessor.h"
+#include "SenderEditor.h"
 
 using juce::ParameterID;
 
@@ -105,7 +106,7 @@ void SenderProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
 juce::AudioProcessorEditor* SenderProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor (*this); // GUI provisional
+    return new SenderEditor (*this);
 }
 
 void SenderProcessor::getStateInformation (juce::MemoryBlock& destData)
